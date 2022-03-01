@@ -1,4 +1,4 @@
-version: '3'
+version: '3.2'
 
 services:
   elasticsearch:
@@ -9,23 +9,44 @@ services:
       - "9200:9200"
       - "9300:9300"
     environment:
-      ES_JAVA_OPTS: "-Xmx256m -Xms256m"
+      ES_JAVA_OPTS: "-Xmx512m -Xms512m"
+      ELASTIC_PASSWORD: minima
+      # Use single node discovery in order to disable production mode and avoid bootstrap checks
+      # see https://www.elastic.co/guide/en/elasticsearch/reference/current/bootstrap-checks.html
+      discovery.type: single-node
+    networks:
+      - elk
+
   logstash:
     image: docker.elastic.co/logstash/logstash:8.0.0
-    command: -f /etc/logstash/conf.d/
     volumes:
-      - ./logstash/:/etc/logstash/conf.d/
+        - ./logstash/logstash.yml:/usr/share/logstash/config/logstash.yml
+        - ./logstash/pipeline:/usr/share/logstash/pipeline
     ports:
-      - "5000:5000"
+      - "15000:15000/tcp"
+      - "15000:15000/udp"
+      - "9600:9600"
     environment:
-      LS_JAVA_OPTS: "-Xmx256m -Xms256m"
+      LS_JAVA_OPTS: "-Xmx512m -Xms512m"
+    networks:
+      - elk
     depends_on:
       - elasticsearch
+
   kibana:
     image: docker.elastic.co/kibana/kibana:8.0.0
     volumes:
-      - ./kibana/:/usr/share/kibana/config/
+        - ./kibana/kibana.yml:/usr/share/kibana/config/kibana.yml
     ports:
       - "5601:5601"
+    networks:
+      - elk
     depends_on:
       - elasticsearch
+
+networks:
+  elk:
+    driver: bridge
+
+volumes:
+  elasticsearch:
